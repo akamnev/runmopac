@@ -25,6 +25,23 @@ def read_dataset(path_to_file):
     return dataset
 
 
+def filter_dataset(dataset, output_file):
+    output = read_output(output_file)
+    filenames = {v['filename'] for v in output}
+    dataset = [v for v in dataset if v['filename'] not in filenames]
+    return dataset
+
+def read_output(path_to_file):
+    dataset = []
+    with open(path_to_file, 'rb') as fp:
+        while True:
+            try:
+                dataset.extend(pickle.load(fp))
+            except EOFError:
+                break
+    return dataset
+
+
 def write_output(path_to_file, dataset):
     with open(path_to_file, 'ab') as fp:
         pickle.dump(dataset, fp)
@@ -77,17 +94,29 @@ async def relax(filename, ids, xyz):
 
 
 async def main(
-        database,
-        output,
+        input_file,
+        output_file,
         n_jobs,
         batch_size=None,
         pbar=None):
+    """
+    Args:
+        input_file (str): path to file with input data
+        output_file (str): path to file to save output data
+        n_jobs (int): the number of workers
+        batch_size (int): the number of calculated data to save
+        pbar (tqdm): progres bar
+    """
     LOG.info('start to relax')
     LOG.info(f'create exchange dir: {DIR_EXCHANGE}')
     os.makedirs(DIR_EXCHANGE, exist_ok=True)
 
-    LOG.info(f'read database: {database}')
-    dataset = read_dataset(database)
+    LOG.info(f'read input file: {input_file}')
+    dataset = read_dataset(input_file)
+
+    if os.path.isfile(os.path.join(DIR, output_file)):
+        dataset = filter_dataset(dataset, os.path.join(DIR, output_file))
+
     if pbar is not None:
         pbar.total = len(dataset)
 
@@ -112,14 +141,14 @@ async def main(
 
         batch.append(r.result())
         if batch_size is not None and len(batch) >= batch_size:
-            write_output(os.path.join(DIR, output), batch)
+            write_output(os.path.join(DIR, output_file), batch)
             batch = []
 
         if pbar is not None:
             pbar.update(1)
 
     if batch:
-        write_output(os.path.join(DIR, output), batch)
+        write_output(os.path.join(DIR, output_file), batch)
         batch = []
 
     LOG.info(f'remove exchange dir: {DIR_EXCHANGE}')
@@ -129,7 +158,7 @@ async def main(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--database', dest='database', required=True)
+    parser.add_argument('--input', dest='input', required=True, type=str)
     parser.add_argument('--output', dest='output', default='output.pkl', type=str)
     parser.add_argument('--n_jobs', dest='n_jobs', required=True, type=int)
     parser.add_argument('--batch_size', dest='batch_size', default=4, type=int)
@@ -139,8 +168,8 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     with tqdm() as pbar:
         loop.run_until_complete(main(
-            database=args.database,
-            output=args.output,
+            input_file=args.input,
+            output_file=args.output,
             n_jobs=args.n_jobs,
             batch_size=args.batch_size,
             pbar=pbar

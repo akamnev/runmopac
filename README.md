@@ -12,8 +12,16 @@ mkdir log
 ```
 Для запуска расчета необходимо из папки `bin` выполнять комманду
 ```shell
-python relax.py --database=path_to_file --n_jobs=40 --batch_size=128
+python relax.py --input=path_to_input_file --output=path_to_output_file --n_jobs=40 --batch_size=128
 ```
+Если `output` файл существует, то соответствующие данные из `input` файла считаться не будут.
+
+
+Данные должны быть сохранены в pickle в виде списка словарей с полями:
+* filename - уникальное название структуры; 
+* ids - список id атомов;
+* xyz - список списков координат.
+
 
 ## Запуск в одном потоке
 Последняя версия MOPAC использует MKL которым сама плохо управляет, 
