@@ -22,6 +22,15 @@ python relax.py --input=path_to_input_file --output=path_to_output_file --n_jobs
 * ids - список id атомов;
 * xyz - список списков координат.
 
+Опционально, установить `virtualenv`
+```shell
+sudo apt install python3-virtualenv
+```
+Создать и запустить виртуальное окружение
+```shell
+virtualenv ~/venv/runmopac --python=python3
+source ~/venv/runmopac/bin/activate
+```
 
 ## Запуск в одном потоке
 Последняя версия MOPAC использует MKL которым сама плохо управляет, 
