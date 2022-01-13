@@ -31,6 +31,7 @@ def filter_dataset(dataset, output_file):
     dataset = [v for v in dataset if v['filename'] not in filenames]
     return dataset
 
+
 def read_output(path_to_file):
     dataset = []
     with open(path_to_file, 'rb') as fp:
@@ -47,11 +48,13 @@ def write_output(path_to_file, dataset):
         pickle.dump(dataset, fp)
 
 
-async def relax(filename, ids, xyz):
+async def relax(filename, ids, xyz, max_relax_time):
     filename_mop = os.path.join(DIR_EXCHANGE, filename + '.mop')
     filename_out = os.path.join(DIR_EXCHANGE, filename + '.out')
     filename_arc = os.path.join(DIR_EXCHANGE, filename + '.arc')
-    save_mop(ids, xyz, filename_mop)
+    filename_res = os.path.join(DIR_EXCHANGE, filename + '.res')
+    filename_den = os.path.join(DIR_EXCHANGE, filename + '.den')
+    save_mop(ids, xyz, filename_mop, threshold_time=max_relax_time)
 
     proc = await asyncio.create_subprocess_shell(
         MOPAC_RUN(filename_mop),
@@ -90,6 +93,11 @@ async def relax(filename, ids, xyz):
         os.remove(filename_arc)
     except Exception:
         LOG.exception("Can't remove files")
+    try:
+        os.remove(filename_res)
+        os.remove(filename_den)
+    except Exception:
+        pass
     return output
 
 
@@ -98,6 +106,7 @@ async def main(
         output_file,
         n_jobs,
         batch_size=None,
+        max_relax_time=None,
         pbar=None):
     """
     Args:
@@ -105,7 +114,8 @@ async def main(
         output_file (str): path to file to save output data
         n_jobs (int): the number of workers
         batch_size (int): the number of calculated data to save
-        pbar (tqdm): progres bar
+        max_relax_time (float): max time (sec) to relax structure
+        pbar (tqdm): progress bar
     """
     LOG.info('start to relax')
     LOG.info(f'create exchange dir: {DIR_EXCHANGE}')
@@ -116,9 +126,11 @@ async def main(
 
     if os.path.isfile(os.path.join(DIR, output_file)):
         dataset = filter_dataset(dataset, os.path.join(DIR, output_file))
+    LOG.info(f'number of structures to relax: {len(dataset)}')
 
     if pbar is not None:
         pbar.total = len(dataset)
+        pbar.update(0)
 
     done = asyncio.Queue()
 
@@ -132,7 +144,8 @@ async def main(
                     relax(
                         filename=data['filename'],
                         ids=data['ids'],
-                        xyz=data['xyz']
+                        xyz=data['xyz'],
+                        max_relax_time=max_relax_time
                     )))
             f.add_done_callback(lambda v: done.put_nowait(v))
             count_put += 1
@@ -162,6 +175,9 @@ if __name__ == '__main__':
     parser.add_argument('--output', dest='output', default='output.pkl', type=str)
     parser.add_argument('--n_jobs', dest='n_jobs', required=True, type=int)
     parser.add_argument('--batch_size', dest='batch_size', default=4, type=int)
+    parser.add_argument(
+        '--max_relax_time', dest='max_relax_time', default=300, type=float
+    )
 
     args = parser.parse_args()
 
@@ -172,6 +188,7 @@ if __name__ == '__main__':
             output_file=args.output,
             n_jobs=args.n_jobs,
             batch_size=args.batch_size,
+            max_relax_time=args.max_relax_time,
             pbar=pbar
         ))
     loop.run_until_complete(asyncio.sleep(1.0))

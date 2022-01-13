@@ -44,9 +44,11 @@ def get_name(ids):
     return ''.join(name)
 
 
-def save_mop(ids, xyz, filename):
+def save_mop(ids, xyz, filename, threshold_time=None):
+    if threshold_time is None:
+        threshold_time = 172800
     file = [
-        'MNDO THREADS=1\n',
+        f'MNDO THREADS=1 T={threshold_time}\n',
         get_name(ids) + '\n',
         'This is optimization with MOPAC\n',
     ]

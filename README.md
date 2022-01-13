@@ -12,7 +12,7 @@ mkdir log
 ```
 Для запуска расчета необходимо из папки `bin` выполнять комманду
 ```shell
-python relax.py --input=path_to_input_file --output=path_to_output_file --n_jobs=40 --batch_size=128
+python relax.py --input=path_to_input_file --output=path_to_output_file --n_jobs=40 --batch_size=128 --max_relax_time=300
 ```
 Если `output` файл существует, то соответствующие данные из `input` файла считаться не будут.
 
